@@ -431,7 +431,7 @@
         </div>
         <div class="field">
           <label>Product or Service</label>
-          <select>
+          <select id="product-select">
             <option value="">Select a product or service...</option>
             <option>Exterior House Paint - Full</option>
             <option>Interior Wall Paint</option>
@@ -576,6 +576,15 @@
     const saveTemplBtn   = document.getElementById('save-template-btn');
     const taxToggle      = document.getElementById('tax-toggle');
     const taxKnob        = document.getElementById('tax-knob');
+    const productSelect  = document.getElementById('product-select');
+    // ── Product dropdown → auto-populate Name ──────────────
+    productSelect.addEventListener('change', () => {
+      const val = productSelect.value;
+      if (val) {
+        nameInput.value = val;
+        nameInput.dispatchEvent(new Event('input'));
+      }
+    });
     // ── Name field → enable/disable AI button ──────────────
     nameInput.addEventListener('focus', () => nameInput.style.borderColor = '#6c47ff');
     nameInput.addEventListener('blur',  () => nameInput.style.borderColor = '#ddd');
@@ -709,6 +718,7 @@
     }
     function resetForm() {
       nameInput.value = '';
+      productSelect.value = '';
       descEl.innerHTML = '';
       aiBtn.disabled = true;
       aiBtn.style.opacity = '0.4';
