@@ -445,14 +445,14 @@
         </div>
       </div>
       <!-- PRICING section -->
-      <div class="field">
+      <div class="field" id="pricing-section">
         <div class="section-row">
           <span class="section-label label-pricing">💲 Pricing</span>
         </div>
         <div class="pricing-row">
           <div class="field" style="margin:0;">
             <label>Quantity</label>
-            <input type="number" value="0" min="0" />
+            <input type="number" id="qty-input" value="0" min="0" />
           </div>
           <div style="padding-top:17px;">
             <select style="padding:9px 6px;"><option>Ea</option><option>Hr</option><option>Sq ft</option><option>Gal</option></select>
@@ -461,7 +461,7 @@
             <label>Price</label>
             <div class="price-wrap">
               <span>$</span>
-              <input type="number" value="0" min="0" step="0.01" style="border:none;border-radius:0;" />
+              <input type="number" id="price-input" value="0" min="0" step="0.01" style="border:none;border-radius:0;" />
             </div>
           </div>
         </div>
@@ -510,7 +510,7 @@
         <span class="tax-label">% Tax</span>
         <div class="tax-controls">
           <span>Rate</span>
-          <input type="number" value="5.000" step="0.001" style="text-align:right;" />
+          <input type="number" id="tax-rate-input" value="5.000" step="0.001" style="text-align:right;" />
           <span>%</span>
           <span style="margin-left:6px;">Taxable</span>
           <div class="toggle" id="tax-toggle">
@@ -521,7 +521,7 @@
       <!-- TOTAL -->
       <div class="total-box">
         <div class="total-label">Total</div>
-        <div class="total-amount">$0.00</div>
+        <div class="total-amount" id="total-amount">$0.00</div>
       </div>
       <p class="help-text">Need help? <a href="#">Click here</a> to add / edit your products and services</p>
       <!-- Status messages (above footer) -->
@@ -562,6 +562,7 @@
     let saveCount = 0;
     let overwriteConfirmed = false;
     let taxOn = false;
+    let descOnlyOn = false;
     // ── Element refs ───────────────────────────────────────
     const nameInput      = document.getElementById('item-name');
     const aiBtn          = document.getElementById('ai-btn');
@@ -577,6 +578,12 @@
     const taxToggle      = document.getElementById('tax-toggle');
     const taxKnob        = document.getElementById('tax-knob');
     const productSelect  = document.getElementById('product-select');
+    const pricingSection = document.getElementById('pricing-section');
+    const qtyInput       = document.getElementById('qty-input');
+    const priceInput     = document.getElementById('price-input');
+    const taxRateInput   = document.getElementById('tax-rate-input');
+    const totalAmount    = document.getElementById('total-amount');
+    const descOnlyChk    = document.querySelector('.check-row input[type="checkbox"]');
     // ── Product dropdown → auto-populate Name ──────────────
     productSelect.addEventListener('change', () => {
       const val = productSelect.value;
@@ -596,11 +603,31 @@
         ? 'Generate AI description for: ' + nameInput.value.trim()
         : 'Enter an item name to enable AI generation';
     });
+    // ── Total calculation ──────────────────────────────────
+    function updateTotal() {
+      if (descOnlyOn) { totalAmount.textContent = '$0.00'; return; }
+      const qty   = parseFloat(qtyInput.value)   || 0;
+      const price = parseFloat(priceInput.value)  || 0;
+      const rate  = parseFloat(taxRateInput.value) || 0;
+      let subtotal = qty * price;
+      if (taxOn) subtotal += subtotal * (rate / 100);
+      totalAmount.textContent = '$' + subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    qtyInput.addEventListener('input', updateTotal);
+    priceInput.addEventListener('input', updateTotal);
+    taxRateInput.addEventListener('input', updateTotal);
+    // ── Description Only checkbox ──────────────────────────
+    descOnlyChk.addEventListener('change', () => {
+      descOnlyOn = descOnlyChk.checked;
+      pricingSection.style.display = descOnlyOn ? 'none' : '';
+      updateTotal();
+    });
     // ── Tax toggle ─────────────────────────────────────────
     taxToggle.addEventListener('click', () => {
       taxOn = !taxOn;
       taxToggle.style.background = taxOn ? '#6c47ff' : '#ddd';
       taxKnob.style.left = taxOn ? '18px' : '2px';
+      updateTotal();
     });
     // ── AI generation ──────────────────────────────────────
     aiBtn.addEventListener('click', () => {
@@ -726,6 +753,17 @@
       aiTxt.textContent = 'Generate with AI';
       hide(msgError); hide(msgSaved); hide(msgDuplicate);
       aiCount = 0; saveCount = 0; overwriteConfirmed = false;
+      // Reset pricing / tax / total
+      qtyInput.value = '0';
+      priceInput.value = '0';
+      taxRateInput.value = '5.000';
+      descOnlyOn = false;
+      descOnlyChk.checked = false;
+      pricingSection.style.display = '';
+      taxOn = false;
+      taxToggle.style.background = '#ddd';
+      taxKnob.style.left = '2px';
+      totalAmount.textContent = '$0.00';
     }
     // ── AI HTML builder ────────────────────────────────────
     function buildHTML(raw) {
