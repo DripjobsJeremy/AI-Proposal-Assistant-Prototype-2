@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Line Item Description Generator — Prototype</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f0f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 20px;
+    }
+    /* ── Prototype banner ── */
+    .proto-banner {
+      background: #6c47ff;
+      color: #fff;
+      padding: 7px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(108,71,255,0.4);
+    }
+    /* ── Modal shell ── */
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 640px;
+      max-width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid #eee;
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 10;
+    }
+    .modal-header h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+    .modal-body { padding: 20px 24px; }
+    /* ── Section labels ── */
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .label-product  { background: #f0edff; color: #6c47ff; }
+    .label-pricing  { background: #f0fff4; color: #276749; }
+    .label-desc     { background: #fff8e1; color: #975a16; }
+    .section-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    /* ── Form fields ── */
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 5px;
+    }
+    .field label .req { color: #e53e3e; }
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 7px;
+      font-size: 13px;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+    input:focus, select:focus { border-color: #6c47ff; }
+    .pricing-row {
+      display: grid;
+      grid-template-columns: 1fr 64px 1fr;
+      gap: 10px;
+      align-items: end;
+    }
+    .pricing-row select { width: 100%; }
+    .price-wrap {
+      display: flex;
+      align-items: center;
+      border: 1.5px solid #ddd;
+      border-radius: 7px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .price-wrap:focus-within { border-color: #6c47ff; }
+    .price-wrap span {
+      padding: 9px 10px;
+      background: #f8f8f8;
+      border-right: 1px solid #ddd;
+      color: #666;
+      font-size: 13px;
+    }
+    .price-wrap input {
+      flex: 1;
+      border: none;
+      border-radius: 0;
+      padding: 9px 10px;
+      min-width: 0;
+    }
+    /* ── Checkboxes row ── */
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .check-row label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      font-weight: 400;
+      margin: 0;
+    }
+    /* ── AI button ── */
+    #ai-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #c084fc, #818cf8);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: not-allowed;
+      opacity: 0.4;
+      letter-spacing: 0.3px;
+      box-shadow: 0 2px 8px rgba(129,140,248,0.3);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    #ai-btn:not(:disabled) {
+      cursor: pointer;
+      opacity: 1;
+    }
+    #ai-btn:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(129,140,248,0.5);
+    }
+    /* ── Hint bar ── */
+    .desc-hint {
+      background: #f0edff;
+      border-bottom: 1px solid #e8e0ff;
+      padding: 9px 13px;
+      font-size: 11.5px;
+      color: #7c5cbf;
+      font-style: italic;
+    }
+    /* ── Rich-text editor shell ── */
+    .editor-wrap {
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .editor-toolbar {
+      background: #f8f8f8;
+      border-bottom: 1px solid #ddd;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-wrap: wrap;
+    }
+    .editor-toolbar select {
+      padding: 3px 6px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 11px;
+      width: auto;
+      margin-right: 4px;
+    }
+    .editor-toolbar button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 3px 7px;
+      font-size: 13px;
+      border-radius: 3px;
+      color: #333;
+    }
+    .editor-toolbar button:hover { background: #eee; }
+    .toolbar-sep { color: #ccc; margin: 0 3px; font-size: 13px; }
+    #description {
+      min-height: 160px;
+      padding: 14px;
+      outline: none;
+      font-size: 13px;
+      line-height: 1.65;
+      color: #333;
+    }
+    #description p { margin-bottom: 4px; }
+    #description ul { margin: 2px 0 8px 20px; }
+    #description li { margin-bottom: 2px; }
+    /* ── AI loading indicator ── */
+    #ai-loading {
+      display: none;
+      text-align: center;
+      padding: 12px 0 4px;
+    }
+    .ai-loading-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #f5f3ff;
+      border-radius: 8px;
+      padding: 12px 20px;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2.5px solid #c4b5fd;
+      border-top-color: #6c47ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ── Inline status messages ── */
+    .status-wrap { margin-bottom: 0; }
+    .msg {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .msg.error   { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; }
+    .msg.success { background: #f0fff4; border: 1px solid #9ae6b4; color: #276749; }
+    .msg.warning {
+      display: none;
+      background: #fffbeb;
+      border: 1px solid #f6e05e;
+      border-radius: 7px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #744210;
+      margin-top: 10px;
+    }
+    .msg.warning .warn-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .warn-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .warn-actions button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-overwrite { background: #d69e2e; color: #fff; border: none; }
+    .btn-new-entry { background: #fff; color: #744210; border: 1px solid #d69e2e; }
+    .btn-cancel-dup { background: transparent; color: #888; border: 1px solid #ddd; font-weight: 400 !important; }
+    /* ── Tax section ── */
+    .tax-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 7px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    .tax-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #555;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .tax-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+    .tax-controls input { width: 75px; padding: 5px 8px; }
+    .toggle {
+      width: 36px; height: 20px;
+      background: #ddd;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle-knob {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: left 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    /* ── Total box ── */
+    .total-box {
+      background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .total-label {
+      font-size: 12px;
+      color: #6c47ff;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .total-amount { font-size: 22px; font-weight: 800; color: #6c47ff; }
+    .help-text {
+      text-align: center;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .help-text a { color: #6c47ff; text-decoration: none; }
+    /* ── Modal footer ── */
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-top: 1px solid #eee;
+      background: #fff;
+    }
+    #save-template-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 16px;
+      background: transparent;
+      color: #6c47ff;
+      border: 1.5px solid #c084fc;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      letter-spacing: 0.2px;
+    }
+    #save-template-btn:hover { background: #f5f3ff; }
+    #save-template-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .footer-actions { display: flex; gap: 10px; }
+    .btn-close {
+      padding: 9px 20px;
+      background: #fff;
+      color: #555;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-save {
+      padding: 9px 24px;
+      background: #6c47ff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(108,71,255,0.35);
+      transition: background 0.2s;
+    }
+    .btn-save:hover { background: #5a38e0; }
+  </style>
+</head>
+<body>
+  <div class="proto-banner">✦ CLICKABLE PROTOTYPE — AI Line Item Description Generator</div>
+  <div class="modal" id="modal">
+    <!-- Header -->
+    <div class="modal-header">
+      <h2>Add Item</h2>
+    </div>
+    <div class="modal-body">
+      <!-- PRODUCT section -->
+      <div class="field">
+        <div class="section-row">
+          <span class="section-label label-product">🏷️ Product</span>
+          <div class="check-row">
+            <label><input type="checkbox"> Description Only</label>
+            <label><input type="checkbox"> Optional</label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Product or Service</label>
+          <select>
+            <option value="">Select a product or service...</option>
+            <option>Exterior House Paint - Full</option>
+            <option>Interior Wall Paint</option>
+            <option>Deck Staining</option>
+            <option>Trim &amp; Door Painting</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Name <span class="req">*</span></label>
+          <input type="text" id="item-name" placeholder="Enter item name" />
+        </div>
+      </div>
+      <!-- PRICING section -->
+      <div class="field">
+        <div class="section-row">
+          <span class="section-label label-pricing">💲 Pricing</span>
+        </div>
+        <div class="pricing-row">
+          <div class="field" style="margin:0;">
+            <label>Quantity</label>
+            <input type="number" value="0" min="0" />
+          </div>
+          <div style="padding-top:17px;">
+            <select style="padding:9px 6px;"><option>Ea</option><option>Hr</option><option>Sq ft</option><option>Gal</option></select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Price</label>
+            <div class="price-wrap">
+              <span>$</span>
+              <input type="number" value="0" min="0" step="0.01" style="border:none;border-radius:0;" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- DESCRIPTION section -->
+      <div class="field">
+        <div class="section-row" style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="section-label label-desc">📝 Description</span>
+            <span title="Supports rich HTML formatting" style="color:#bbb;cursor:help;font-size:13px;">ℹ</span>
+          </div>
+          <button id="ai-btn" disabled>
+            <span id="ai-icon">✨</span>
+            <span id="ai-txt">Generate with AI</span>
+          </button>
+        </div>
+        <div class="editor-wrap">
+          <div class="editor-toolbar">
+            <select><option>Styles</option></select>
+            <select><option>Font</option></select>
+            <select><option>Size</option></select>
+            <span class="toolbar-sep">|</span>
+            <button title="Bold"><b>B</b></button>
+            <button title="Italic"><i>I</i></button>
+            <button title="Underline"><u>U</u></button>
+            <button title="Strikethrough"><s>S</s></button>
+            <span class="toolbar-sep">|</span>
+            <button title="Ordered list">1.</button>
+            <button title="Unordered list">•</button>
+          </div>
+          <div class="desc-hint">
+            💡 The more detail you provide, the better your AI description will be.
+            Example: Interior walls, living room, two coats, customer-supplied Sherwin Williams Emerald Satin.
+          </div>
+          <div id="description" contenteditable="true"></div>
+        </div>
+        <div id="ai-loading">
+          <div class="ai-loading-inner">
+            <div class="spinner"></div>
+            <span style="font-size:13px;font-weight:600;color:#6c47ff;">AI is generating your description...</span>
+          </div>
+        </div>
+      </div>
+      <!-- TAX section -->
+      <div class="tax-row">
+        <span class="tax-label">% Tax</span>
+        <div class="tax-controls">
+          <span>Rate</span>
+          <input type="number" value="5.000" step="0.001" style="text-align:right;" />
+          <span>%</span>
+          <span style="margin-left:6px;">Taxable</span>
+          <div class="toggle" id="tax-toggle">
+            <div class="toggle-knob" id="tax-knob"></div>
+          </div>
+        </div>
+      </div>
+      <!-- TOTAL -->
+      <div class="total-box">
+        <div class="total-label">Total</div>
+        <div class="total-amount">$0.00</div>
+      </div>
+      <p class="help-text">Need help? <a href="#">Click here</a> to add / edit your products and services</p>
+      <!-- Status messages (above footer) -->
+      <div class="status-wrap">
+        <div id="msg-error" class="msg error">
+          <span>⚠️</span>
+          <span>AI generation is unavailable right now. You can still enter your description manually.</span>
+        </div>
+        <div id="msg-saved" class="msg success">
+          <span>✅</span>
+          <span>Saved to Products &amp; Services.</span>
+        </div>
+        <div id="msg-duplicate" class="msg warning">
+          <div class="warn-title">⚠️ Duplicate Name Found</div>
+          <div>A product named "<span id="dup-name"></span>" already exists in your Products &amp; Services library.</div>
+          <div class="warn-actions">
+            <button class="btn-overwrite" id="btn-overwrite">Overwrite Existing</button>
+            <button class="btn-new-entry" id="btn-new-entry">Save as New Entry</button>
+            <button class="btn-cancel-dup" id="btn-cancel-dup">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /modal-body -->
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button id="save-template-btn">
+        <span>📚</span> Save as Template
+      </button>
+      <div class="footer-actions">
+        <button class="btn-close" id="btn-close">Close</button>
+        <button class="btn-save" id="btn-save">Save</button>
+      </div>
+    </div>
+  </div><!-- /modal -->
+  <script>
+    // ── State ──────────────────────────────────────────────
+    let aiCount   = 0;
+    let saveCount = 0;
+    let overwriteConfirmed = false;
+    let taxOn = false;
+    // ── Element refs ───────────────────────────────────────
+    const nameInput      = document.getElementById('item-name');
+    const aiBtn          = document.getElementById('ai-btn');
+    const aiIcon         = document.getElementById('ai-icon');
+    const aiTxt          = document.getElementById('ai-txt');
+    const aiLoading      = document.getElementById('ai-loading');
+    const descEl         = document.getElementById('description');
+    const msgError       = document.getElementById('msg-error');
+    const msgSaved       = document.getElementById('msg-saved');
+    const msgDuplicate   = document.getElementById('msg-duplicate');
+    const dupNameEl      = document.getElementById('dup-name');
+    const saveTemplBtn   = document.getElementById('save-template-btn');
+    const taxToggle      = document.getElementById('tax-toggle');
+    const taxKnob        = document.getElementById('tax-knob');
+    // ── Name field → enable/disable AI button ──────────────
+    nameInput.addEventListener('focus', () => nameInput.style.borderColor = '#6c47ff');
+    nameInput.addEventListener('blur',  () => nameInput.style.borderColor = '#ddd');
+    nameInput.addEventListener('input', () => {
+      const hasText = nameInput.value.trim().length > 0;
+      aiBtn.disabled = !hasText;
+      aiBtn.style.opacity = hasText ? '1' : '0.4';
+      aiBtn.title = hasText
+        ? 'Generate AI description for: ' + nameInput.value.trim()
+        : 'Enter an item name to enable AI generation';
+    });
+    // ── Tax toggle ─────────────────────────────────────────
+    taxToggle.addEventListener('click', () => {
+      taxOn = !taxOn;
+      taxToggle.style.background = taxOn ? '#6c47ff' : '#ddd';
+      taxKnob.style.left = taxOn ? '18px' : '2px';
+    });
+    // ── AI generation ──────────────────────────────────────
+    aiBtn.addEventListener('click', () => {
+      const nameVal = nameInput.value.trim();
+      if (!nameVal) return;
+      // Hide prior messages
+      hide(msgError); hide(msgSaved); hide(msgDuplicate);
+      // Loading state
+      aiBtn.disabled = true;
+      aiBtn.style.opacity = '0.7';
+      aiIcon.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:2px;border-color:#c4b5fd;border-top-color:#fff;"></span>';
+      aiTxt.textContent = 'Generating...';
+      aiLoading.style.display = 'block';
+      aiCount++;
+      const isError = (aiCount % 5 === 0); // simulate error every 5th click
+      setTimeout(() => {
+        aiLoading.style.display = 'none';
+        aiBtn.disabled = false;
+        aiBtn.style.opacity = '1';
+        if (isError) {
+          aiIcon.textContent = '✨';
+          aiTxt.textContent  = 'Generate with AI';
+          show(msgError);
+          return;
+        }
+        // Success
+        aiIcon.textContent = '✨';
+        aiTxt.textContent  = 'Regenerate with AI';
+        // Populate name (clean/capitalize)
+        nameInput.value = capitalize(nameVal);
+        // Populate description
+        descEl.innerHTML = buildHTML(nameVal);
+        flash(descEl);
+      }, 2200);
+    });
+    // ── Save as Template ───────────────────────────────────
+    saveTemplBtn.addEventListener('click', doSaveTemplate);
+    function doSaveTemplate() {
+      const nameVal = nameInput.value.trim();
+      hide(msgSaved); hide(msgDuplicate); hide(msgError);
+      if (!nameVal) {
+        nameInput.style.borderColor = '#e53e3e';
+        nameInput.focus();
+        setTimeout(() => nameInput.style.borderColor = '#ddd', 2000);
+        return;
+      }
+      // Demo: duplicate if saveCount > 0 AND name includes "paint"
+      const isDup = saveCount > 0
+        && nameVal.toLowerCase().includes('paint')
+        && !overwriteConfirmed;
+      if (isDup) {
+        dupNameEl.textContent = capitalize(nameVal);
+        show(msgDuplicate);
+        return;
+      }
+      // Saving state
+      saveTemplBtn.disabled = true;
+      saveTemplBtn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;border-color:#c4b5fd;border-top-color:#6c47ff;"></span> Saving...';
+      setTimeout(() => {
+        saveCount++;
+        overwriteConfirmed = false;
+        saveTemplBtn.disabled = false;
+        saveTemplBtn.innerHTML = '<span>📚</span> Save as Template';
+        hide(msgDuplicate);
+        show(msgSaved);
+        setTimeout(() => hide(msgSaved), 4000);
+      }, 1400);
+    }
+    // ── Duplicate actions ──────────────────────────────────
+    document.getElementById('btn-overwrite').addEventListener('click', () => {
+      overwriteConfirmed = true;
+      doSaveTemplate();
+    });
+    document.getElementById('btn-new-entry').addEventListener('click', () => {
+      nameInput.value = nameInput.value.trim() + ' (Copy)';
+      overwriteConfirmed = true;
+      doSaveTemplate();
+    });
+    document.getElementById('btn-cancel-dup').addEventListener('click', () => {
+      hide(msgDuplicate);
+    });
+    // ── Save / Close ───────────────────────────────────────
+    document.getElementById('btn-save').addEventListener('click', function () {
+      const nameVal = nameInput.value.trim();
+      if (!nameVal) {
+        nameInput.style.borderColor = '#e53e3e';
+        nameInput.focus();
+        setTimeout(() => nameInput.style.borderColor = '#ddd', 2000);
+        return;
+      }
+      this.textContent = 'Saving...';
+      this.style.background = '#5a38e0';
+      setTimeout(() => {
+        this.textContent = '✓ Saved!';
+        this.style.background = '#38a169';
+        setTimeout(() => {
+          // Reset form for demo replay
+          resetForm();
+          this.textContent = 'Save';
+          this.style.background = '#6c47ff';
+        }, 1200);
+      }, 900);
+    });
+    document.getElementById('btn-close').addEventListener('click', resetForm);
+    // ── Helpers ────────────────────────────────────────────
+    function show(el) { el.style.display = el.classList.contains('warning') ? 'block' : 'flex'; }
+    function hide(el) { el.style.display = 'none'; }
+    function flash(el) {
+      el.style.transition = 'background 0.4s';
+      el.style.background = '#fffff0';
+      setTimeout(() => { el.style.background = ''; }, 1400);
+    }
+    function capitalize(str) {
+      return str.replace(/\b\w/g, c => c.toUpperCase()).trim();
+    }
+    function resetForm() {
+      nameInput.value = '';
+      descEl.innerHTML = '';
+      aiBtn.disabled = true;
+      aiBtn.style.opacity = '0.4';
+      aiIcon.textContent = '✨';
+      aiTxt.textContent = 'Generate with AI';
+      hide(msgError); hide(msgSaved); hide(msgDuplicate);
+      aiCount = 0; saveCount = 0; overwriteConfirmed = false;
+    }
+    // ── AI HTML builder ────────────────────────────────────
+    function buildHTML(raw) {
+      const name = capitalize(raw);
+      const nl   = raw.toLowerCase();
+      let html   = `<p><strong>${name}</strong></p>`;
+      // Preparation
+      html += `<p><strong>Preparation</strong></p><ul>`;
+      html += `<li>Inspect and clean all surfaces to ensure proper paint adhesion.</li>`;
+      html += `<li>Sand rough or peeling areas and feather all edges smooth.</li>`;
+      html += `<li>Fill holes and surface imperfections with appropriate patching compound; allow to cure fully.</li>`;
+      html += `<li>Apply painter's tape to protect adjacent surfaces, trim, and fixtures.</li>`;
+      if (nl.includes('exterior') || nl.includes('outside') || nl.includes('siding')) {
+        html += `<li>Power wash all exterior surfaces and allow to dry for a minimum of 24 hours before coating.</li>`;
+      }
+      html += `</ul>`;
+      // Product
+      html += `<p><strong>Product</strong></p><ul>`;
+      html += `<li>Premium-quality paint to be selected per project specification and client approval.</li>`;
+      html += `<li>Primer applied where required for proper adhesion and uniform coverage.</li>`;
+      html += `<li>Paint sheen, brand, and color to be confirmed with client prior to material purchase.</li>`;
+      html += `</ul>`;
+      // Application
+      html += `<p><strong>Application</strong></p><ul>`;
+      html += `<li>Apply one uniform coat of primer; allow to dry fully per manufacturer guidelines.</li>`;
+      html += `<li>Apply a minimum of two finish coats, allowing adequate dry time between coats.</li>`;
+      html += `<li>Maintain a wet edge throughout application to prevent lap marks and ensure even coverage.</li>`;
+      if (nl.includes('exterior') || nl.includes('spray') || nl.includes('siding')) {
+        html += `<li>Back-roll all sprayed surfaces to ensure full penetration and adhesion.</li>`;
+      }
+      html += `</ul>`;
+      // Areas of Application
+      html += `<p><strong>Areas of Application</strong></p><ul>`;
+      if (nl.includes('interior') || nl.includes('wall') || nl.includes('room') || nl.includes('ceiling')) {
+        html += `<li>Interior walls and ceiling surfaces as specified in the agreed scope of work.</li>`;
+        html += `<li>All trim, doors, and accent features included in the scope to be painted to match or complement the primary color.</li>`;
+      } else if (nl.includes('exterior') || nl.includes('outside') || nl.includes('siding')) {
+        html += `<li>All exterior siding, fascia, soffit, and gable surfaces.</li>`;
+        html += `<li>Trim, shutters, and architectural detail as included in the agreed scope.</li>`;
+      } else if (nl.includes('deck') || nl.includes('fence') || nl.includes('stain')) {
+        html += `<li>Deck boards, railings, balusters, and stair treads as specified.</li>`;
+        html += `<li>Fence pickets, rails, and posts as outlined in the agreed scope.</li>`;
+      } else {
+        html += `<li>All surfaces as outlined in the agreed-upon scope of work.</li>`;
+        html += `<li>Additional areas to be confirmed with the client prior to commencement.</li>`;
+      }
+      html += `</ul>`;
+      return html;
+    }
+  </script>
+</body>
+</html>
