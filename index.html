@@ -1,840 +1,1316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Line Item Description Generator — Prototype</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f0f5;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 20px;
-    }
-    /* ── Prototype banner ── */
-    .proto-banner {
-      background: #6c47ff;
-      color: #fff;
-      padding: 7px 20px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 10px rgba(108,71,255,0.4);
-    }
-    /* ── Modal shell ── */
-    .modal {
-      background: #fff;
-      border-radius: 12px;
-      width: 640px;
-      max-width: 100%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
-      overflow: hidden;
-    }
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 24px 16px;
-      border-bottom: 1px solid #eee;
-      position: sticky;
-      top: 0;
-      background: #fff;
-      z-index: 10;
-    }
-    .modal-header h2 {
-      font-size: 17px;
-      font-weight: 700;
-      color: #1a1a2e;
-    }
-    .modal-body { padding: 20px 24px; }
-    /* ── Section labels ── */
-    .section-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      border-radius: 6px;
-      padding: 3px 8px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .label-product  { background: #f0edff; color: #6c47ff; }
-    .label-pricing  { background: #f0fff4; color: #276749; }
-    .label-desc     { background: #fff8e1; color: #975a16; }
-    .section-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-    }
-    /* ── Form fields ── */
-    .field { margin-bottom: 14px; }
-    .field label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: #555;
-      margin-bottom: 5px;
-    }
-    .field label .req { color: #e53e3e; }
-    input[type="text"],
-    input[type="number"],
-    select {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1.5px solid #ddd;
-      border-radius: 7px;
-      font-size: 13px;
-      color: #1a1a2e;
-      outline: none;
-      transition: border-color 0.2s;
-      background: #fff;
-    }
-    input:focus, select:focus { border-color: #6c47ff; }
-    .pricing-row {
-      display: grid;
-      grid-template-columns: 1fr 64px 1fr;
-      gap: 10px;
-      align-items: end;
-    }
-    .pricing-row select { width: 100%; }
-    .price-wrap {
-      display: flex;
-      align-items: center;
-      border: 1.5px solid #ddd;
-      border-radius: 7px;
-      overflow: hidden;
-      transition: border-color 0.2s;
-    }
-    .price-wrap:focus-within { border-color: #6c47ff; }
-    .price-wrap span {
-      padding: 9px 10px;
-      background: #f8f8f8;
-      border-right: 1px solid #ddd;
-      color: #666;
-      font-size: 13px;
-    }
-    .price-wrap input {
-      flex: 1;
-      border: none;
-      border-radius: 0;
-      padding: 9px 10px;
-      min-width: 0;
-    }
-    /* ── Checkboxes row ── */
-    .check-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .check-row label {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      color: #666;
-      cursor: pointer;
-      font-weight: 400;
-      margin: 0;
-    }
-    /* ── AI button ── */
-    #ai-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 8px 16px;
-      background: linear-gradient(135deg, #c084fc, #818cf8);
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: not-allowed;
-      opacity: 0.4;
-      letter-spacing: 0.3px;
-      box-shadow: 0 2px 8px rgba(129,140,248,0.3);
-      white-space: nowrap;
-      transition: all 0.2s;
-    }
-    #ai-btn:not(:disabled) {
-      cursor: pointer;
-      opacity: 1;
-    }
-    #ai-btn:not(:disabled):hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(129,140,248,0.5);
-    }
-    /* ── Hint bar ── */
-    .desc-hint {
-      background: #f0edff;
-      border-bottom: 1px solid #e8e0ff;
-      padding: 9px 13px;
-      font-size: 11.5px;
-      color: #7c5cbf;
-      font-style: italic;
-    }
-    /* ── Rich-text editor shell ── */
-    .editor-wrap {
-      border: 1.5px solid #ddd;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .editor-toolbar {
-      background: #f8f8f8;
-      border-bottom: 1px solid #ddd;
-      padding: 6px 10px;
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      flex-wrap: wrap;
-    }
-    .editor-toolbar select {
-      padding: 3px 6px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 11px;
-      width: auto;
-      margin-right: 4px;
-    }
-    .editor-toolbar button {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 3px 7px;
-      font-size: 13px;
-      border-radius: 3px;
-      color: #333;
-    }
-    .editor-toolbar button:hover { background: #eee; }
-    .toolbar-sep { color: #ccc; margin: 0 3px; font-size: 13px; }
-    #description {
-      min-height: 160px;
-      padding: 14px;
-      outline: none;
-      font-size: 13px;
-      line-height: 1.65;
-      color: #333;
-    }
-    #description p { margin-bottom: 4px; }
-    #description ul { margin: 2px 0 8px 20px; }
-    #description li { margin-bottom: 2px; }
-    /* ── AI loading indicator ── */
-    #ai-loading {
-      display: none;
-      text-align: center;
-      padding: 12px 0 4px;
-    }
-    .ai-loading-inner {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: #f5f3ff;
-      border-radius: 8px;
-      padding: 12px 20px;
-    }
-    .spinner {
-      width: 16px; height: 16px;
-      border: 2.5px solid #c4b5fd;
-      border-top-color: #6c47ff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    /* ── Inline status messages ── */
-    .status-wrap { margin-bottom: 0; }
-    .msg {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      border-radius: 7px;
-      padding: 10px 14px;
-      font-size: 12px;
-      margin-top: 10px;
-    }
-    .msg.error   { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; }
-    .msg.success { background: #f0fff4; border: 1px solid #9ae6b4; color: #276749; }
-    .msg.warning {
-      display: none;
-      background: #fffbeb;
-      border: 1px solid #f6e05e;
-      border-radius: 7px;
-      padding: 12px 14px;
-      font-size: 12px;
-      color: #744210;
-      margin-top: 10px;
-    }
-    .msg.warning .warn-title {
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-    .warn-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-    .warn-actions button {
-      padding: 6px 14px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .btn-overwrite { background: #d69e2e; color: #fff; border: none; }
-    .btn-new-entry { background: #fff; color: #744210; border: 1px solid #d69e2e; }
-    .btn-cancel-dup { background: transparent; color: #888; border: 1px solid #ddd; font-weight: 400 !important; }
-    /* ── Tax section ── */
-    .tax-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #fafafa;
-      border: 1px solid #eee;
-      border-radius: 7px;
-      padding: 12px 14px;
-      margin-bottom: 16px;
-    }
-    .tax-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: #555;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .tax-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 12px;
-      color: #666;
-    }
-    .tax-controls input { width: 75px; padding: 5px 8px; }
-    .toggle {
-      width: 36px; height: 20px;
-      background: #ddd;
-      border-radius: 10px;
-      cursor: pointer;
-      position: relative;
-      transition: background 0.2s;
-      flex-shrink: 0;
-    }
-    .toggle-knob {
-      position: absolute;
-      top: 2px; left: 2px;
-      width: 16px; height: 16px;
-      background: #fff;
-      border-radius: 50%;
-      transition: left 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    /* ── Total box ── */
-    .total-box {
-      background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-      border-radius: 8px;
-      padding: 16px;
-      text-align: center;
-      margin-bottom: 16px;
-    }
-    .total-label {
-      font-size: 12px;
-      color: #6c47ff;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .total-amount { font-size: 22px; font-weight: 800; color: #6c47ff; }
-    .help-text {
-      text-align: center;
-      font-size: 12px;
-      color: #888;
-      margin-bottom: 6px;
-    }
-    .help-text a { color: #6c47ff; text-decoration: none; }
-    /* ── Modal footer ── */
-    .modal-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
-      border-top: 1px solid #eee;
-      background: #fff;
-    }
-    #save-template-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 9px 16px;
-      background: transparent;
-      color: #6c47ff;
-      border: 1.5px solid #c084fc;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-      letter-spacing: 0.2px;
-    }
-    #save-template-btn:hover { background: #f5f3ff; }
-    #save-template-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .footer-actions { display: flex; gap: 10px; }
-    .btn-close {
-      padding: 9px 20px;
-      background: #fff;
-      color: #555;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .btn-save {
-      padding: 9px 24px;
-      background: #6c47ff;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(108,71,255,0.35);
-      transition: background 0.2s;
-    }
-    .btn-save:hover { background: #5a38e0; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DripJobs – Jobi AI Line Item Assist</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px 80px;
+    color: #1a1a2e;
+  }
+
+  /* ── Demo Controls ── */
+  .demo-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 544px;
+  }
+  .demo-label {
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    color: #999;
+    font-weight: 600;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+  }
+  .demo-btn {
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: 2px solid #7C3AED;
+    background: white;
+    color: #7C3AED;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s;
+  }
+  .demo-btn:hover, .demo-btn.active {
+    background: #7C3AED;
+    color: white;
+  }
+
+  /* ── Modal Shell ── */
+  .modal-shell {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.14);
+    width: 100%;
+    max-width: 544px;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid #e8eaf0;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; color: #111; }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    color: #888; font-size: 20px; line-height: 1;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .modal-close:hover { color: #333; background: #f0f0f3; }
+
+  /* ── Body ── */
+  .modal-body {
+    padding: 16px 20px;
+    max-height: 82vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── Section Cards ── */
+  .section-card {
+    border: 1px solid #e8eaf0;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    color: #7C3AED;
+    margin-bottom: 12px;
+  }
+  .section-toprow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .section-toprow .section-header { margin-bottom: 0; }
+
+  /* ── Toggles ── */
+  .toggle-group { display: flex; align-items: center; gap: 14px; }
+  .toggle-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+  .toggle-switch {
+    width: 36px; height: 20px; border-radius: 10px;
+    background: #ddd; position: relative; cursor: pointer;
+    transition: background .2s; flex-shrink: 0;
+  }
+  .toggle-switch.on { background: #7C3AED; }
+  .toggle-switch::after {
+    content: ''; position: absolute;
+    width: 16px; height: 16px;
+    background: white; border-radius: 50%;
+    top: 2px; left: 2px;
+    transition: left .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .toggle-switch.on::after { left: 18px; }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 10px; }
+  .form-group:last-child { margin-bottom: 0; }
+  .form-label { font-size: 12px; font-weight: 600; color: #444; margin-bottom: 5px; display: block; }
+  .req { color: #e63757; margin-left: 2px; }
+  .form-control {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid #d0d4dd; border-radius: 6px;
+    font-size: 14px; color: #111; outline: none;
+    transition: border-color .15s; background: white;
+    font-family: inherit;
+  }
+  .form-control:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+  select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    cursor: pointer;
+  }
+
+  /* ── Name + AI button row ── */
+  .name-ai-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .name-ai-row .form-control {
+    flex: 1;
+    min-width: 0;
+  }
+  .btn-ai {
+    flex-shrink: 0;
+    padding: 9px 14px;
+    background: #7C3AED;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    transition: background .18s;
+    font-family: inherit;
+    height: 38px;
+  }
+  .btn-ai:hover { background: #6d28d9; }
+
+  /* ── AI Prompt Panel ── */
+  .ai-prompt-panel {
+    background: #f0ebff;
+    border: 1.5px solid #c4b5fd;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 10px;
+    display: none;
+  }
+  .ai-prompt-panel.open { display: block; }
+  .ai-prompt-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    color: #7C3AED;
+    margin-bottom: 8px;
+  }
+  .ai-prompt-hint {
+    font-size: 12.5px;
+    font-style: italic;
+    color: #7C3AED;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    opacity: .85;
+  }
+  .ai-prompt-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #c4b5fd;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #111;
+    outline: none;
+    font-family: inherit;
+    background: white;
+    transition: border-color .15s;
+    resize: vertical;
+    min-height: 72px;
+    line-height: 1.55;
+    display: block;
+  }
+  .ai-prompt-textarea:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+  .ai-prompt-textarea::placeholder { color: #a98fe0; }
+  .ai-prompt-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .ai-cancel-btn {
+    background: none;
+    border: none;
+    color: #9b7de8;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 4px;
+    font-family: inherit;
+    transition: color .15s;
+  }
+  .ai-cancel-btn:hover { color: #7C3AED; }
+  .ai-generate-btn {
+    flex-shrink: 0;
+    padding: 9px 16px;
+    background: #7C3AED;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background .18s;
+    height: 38px;
+  }
+  .ai-generate-btn:hover:not([disabled]) { background: #6d28d9; }
+  .ai-generate-btn[disabled] { opacity: .6; cursor: not-allowed; }
+  .ai-dismiss-btn {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    border: none; background: transparent;
+    color: #9b7de8; cursor: pointer;
+    font-size: 16px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s;
+  }
+  .ai-dismiss-btn:hover { background: #e6d9ff; color: #7C3AED; }
+
+  /* Spinner for generate button */
+  .spin-ring {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.35);
+    border-top-color: white;
+    border-radius: 50%;
+    display: none;
+    animation: spin .65s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .gen-loading .spin-ring { display: inline-block; }
+  .gen-loading .gen-icon { display: none; }
+
+  /* ── Pricing ── */
+  .pricing-row { display: flex; gap: 10px; align-items: flex-end; }
+  .qty-wrap { display: flex; flex-shrink: 0; }
+  .qty-input {
+    width: 88px; padding: 9px 10px;
+    border: 1px solid #d0d4dd;
+    border-radius: 6px 0 0 6px;
+    font-size: 14px; outline: none; font-family: inherit;
+  }
+  .qty-input:focus { border-color: #7C3AED; }
+  .qty-unit {
+    padding: 9px 10px; border: 1px solid #d0d4dd;
+    border-left: none; border-radius: 0 6px 6px 0;
+    background: #f5f5f8; font-size: 13px; color: #666;
+    display: flex; align-items: center;
+  }
+  .price-field-wrap { flex: 1; }
+  .price-field-wrap .price-inner { position: relative; }
+  .price-currency {
+    position: absolute; left: 11px; top: 50%;
+    transform: translateY(-50%); color: #888; font-size: 14px;
+    pointer-events: none;
+  }
+  .price-field-wrap .form-control { padding-left: 24px; }
+
+  /* ── Description ── */
+  .desc-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+  .desc-section-header .section-header { margin-bottom: 0; flex: 1; }
+  .btn-generate-with-ai {
+    flex-shrink: 0;
+    padding: 5px 11px;
+    background: #7C3AED;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background .18s;
+  }
+  .btn-generate-with-ai:hover { background: #6d28d9; }
+
+  .desc-toolbar {
+    border: 1px solid #d0d4dd; border-bottom: none;
+    border-radius: 6px 6px 0 0; padding: 5px 8px;
+    display: flex; gap: 3px; align-items: center;
+    background: #fafafa; flex-wrap: wrap;
+  }
+  .toolbar-sel {
+    border: 1px solid #d0d4dd; border-radius: 4px;
+    font-size: 12px; padding: 3px 5px; background: white;
+    color: #444; cursor: pointer; font-family: inherit;
+  }
+  .t-btn {
+    width: 25px; height: 25px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; border: none; background: transparent;
+    color: #555; font-size: 12px; cursor: pointer;
+    transition: background .12s;
+  }
+  .t-btn:hover { background: #ede9ff; color: #7C3AED; }
+  .t-sep { width: 1px; height: 18px; background: #e0e0e8; margin: 0 2px; }
+
+  /* ── Description editor container ── */
+  .desc-editor-wrap {
+    position: relative;
+  }
+  .desc-editor {
+    border: 1px solid #d0d4dd; border-radius: 0 0 6px 6px;
+    min-height: 130px; padding: 10px 12px;
+    font-size: 13.5px; line-height: 1.65; color: #333;
+    outline: none; transition: border-color .15s, background .3s;
+    background: white;
+  }
+  .desc-editor:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+  .desc-editor.ai-flash { background: #f3eeff; border-color: #7C3AED; }
+  .desc-editor ul, .desc-editor ol { padding-left: 22px; margin: 4px 0; }
+  .desc-editor li { margin-bottom: 2px; }
+  .body-hint { font-size: 11px; color: #bbb; display: block; margin-top: 6px; }
+
+  /* Description loading overlay */
+  .desc-loading-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 0 0 6px 6px;
+    background: rgba(248, 245, 255, 0.94);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid #c4b5fd;
+    z-index: 10;
+  }
+  .desc-loading-overlay.show { display: flex; }
+  .desc-spinner-ring {
+    width: 26px; height: 26px;
+    border: 3px solid rgba(124,58,237,.2);
+    border-top-color: #7C3AED;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  .desc-loading-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #7C3AED;
+    letter-spacing: .3px;
+  }
+
+  /* ── Tax ── */
+  .tax-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .tax-lbl {
+    font-size: 11px; font-weight: 700; letter-spacing: .7px;
+    text-transform: uppercase; color: #7C3AED;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tax-rate-area {
+    margin-left: auto; display: flex;
+    align-items: center; gap: 8px;
+  }
+  .tax-rate-area span { font-size: 13px; color: #555; }
+  .tax-input {
+    width: 72px; padding: 7px 8px;
+    border: 1px solid #d0d4dd; border-radius: 6px;
+    font-size: 13px; text-align: right; outline: none;
+    font-family: inherit;
+  }
+  .tax-input:focus { border-color: #7C3AED; }
+
+  /* ── Total ── */
+  .total-bar {
+    background: linear-gradient(135deg, #f3eeff, #e9e0ff);
+    border-radius: 8px; padding: 14px 18px; text-align: center;
+  }
+  .total-bar .t-lbl {
+    font-size: 11px; color: #7C3AED; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px;
+  }
+  .total-bar .t-amt { font-size: 22px; font-weight: 800; color: #7C3AED; }
+
+  .help-text {
+    text-align: center; font-size: 12.5px; color: #666; padding: 2px 0;
+  }
+  .help-text a { color: #7C3AED; font-weight: 600; text-decoration: none; }
+  .help-text a:hover { text-decoration: underline; }
+
+  .save-new-product-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+  .save-new-product-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #444;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+  }
+  .save-new-product-toggle {
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    border: 1px solid #cfd3dd;
+    background: #eceff5;
+    position: relative;
+    transition: all .18s;
+    flex-shrink: 0;
+  }
+  .save-new-product-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    transition: transform .18s;
+  }
+  .save-new-product-label input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .save-new-product-label input:checked + .save-new-product-toggle {
+    background: #7C3AED;
+    border-color: #7C3AED;
+  }
+  .save-new-product-label input:checked + .save-new-product-toggle::after {
+    transform: translateX(16px);
+  }
+
+  /* ── Footer ── */
+  .modal-footer {
+    padding: 12px 20px; border-top: 1px solid #e8eaf0;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  }
+  .footer-right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .btn {
+    padding: 10px 18px; border-radius: 7px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    border: none; display: inline-flex; align-items: center;
+    gap: 6px; transition: all .18s; font-family: inherit;
+    white-space: nowrap;
+  }
+  .btn-primary { background: #7C3AED; color: white; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-outline { background: white; color: #7C3AED; border: 1.5px solid #7C3AED; font-size: 13px; padding: 10px 14px; }
+  .btn-outline:hover { background: #f3eeff; }
+  .btn-ghost { background: white; color: #555; border: 1.5px solid #d0d4dd; }
+  .btn-ghost:hover { background: #f5f5f8; }
+  .btn-danger { background: white; color: #e63757; border: 1.5px solid #e63757; }
+  .btn-danger:hover { background: #fff5f7; }
+
+  /* ── Overlay / Dialog ── */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 200; display: flex;
+    align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .overlay.show { opacity: 1; pointer-events: all; }
+  .dialog {
+    background: white; border-radius: 12px;
+    padding: 26px 28px; max-width: 360px; width: 90%;
+    box-shadow: 0 16px 50px rgba(0,0,0,.22);
+    transform: scale(.96) translateY(6px);
+    transition: transform .2s;
+  }
+  .overlay.show .dialog { transform: scale(1) translateY(0); }
+  .dialog-icon-wrap {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  .icon-warn { background: #fff8e1; }
+  .icon-error { background: #fff1f3; }
+  .dialog-title { font-size: 16px; font-weight: 700; color: #111; margin-bottom: 8px; }
+  .dialog-body { font-size: 14px; color: #555; line-height: 1.55; margin-bottom: 20px; }
+  .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; top: 20px; right: 20px;
+    transform: translateY(-8px);
+    background: #16a34a; color: white;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+    opacity: 0; pointer-events: none;
+    transition: all .3s; z-index: 300;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { background: #dc2626; }
+  .toast-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,.6);
+  }
+
+  /* ── Item Type Selector ── */
+  .item-type-selector {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #f8f5ff;
+    border: 1.5px solid #e4d9ff;
+    border-radius: 6px;
+  }
+  .item-type-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .item-type-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    white-space: nowrap;
+  }
+  .type-pill-group { display: flex; gap: 6px; }
+  .type-pill {
+    padding: 6px 18px;
+    border: 1.5px solid #d0d4dd;
+    border-radius: 20px;
+    background: white;
+    color: #555;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .type-pill:hover { border-color: #7C3AED; color: #7C3AED; }
+  .type-pill.active { background: #7C3AED; border-color: #7C3AED; color: white; }
+  .type-required-hint {
+    font-size: 11px;
+    color: #e63757;
+    margin-top: 6px;
+    display: none;
+  }
+  .type-required-hint.show { display: block; }
+</style>
 </head>
 <body>
-  <div class="proto-banner">✦ CLICKABLE PROTOTYPE — AI Line Item Description Generator</div>
-  <div class="modal" id="modal">
-    <!-- Header -->
-    <div class="modal-header">
-      <h2>Add Item</h2>
-    </div>
-    <div class="modal-body">
-      <!-- PRODUCT section -->
-      <div class="field">
-        <div class="section-row">
-          <span class="section-label label-product">🏷️ Product</span>
-          <div class="check-row">
-            <label style="gap:7px;">
-              <div class="toggle" id="desc-only-toggle"><div class="toggle-knob" id="desc-only-knob"></div></div>
-              Description Only
-            </label>
-            <label style="gap:7px;">
-              <div class="toggle" id="optional-toggle"><div class="toggle-knob" id="optional-knob"></div></div>
-              Optional
-            </label>
+
+<!-- ── Demo Toggle ── -->
+<div class="demo-controls">
+  <div class="demo-label">Select modal to preview</div>
+  <button class="demo-btn active" onclick="switchModal('edit', this)">&#9998; Edit Line Item</button>
+  <button class="demo-btn" onclick="switchModal('add', this)">&#43; Add Item</button>
+</div>
+
+<!-- ══════════════════════
+     EDIT LINE ITEM MODAL
+══════════════════════ -->
+<div class="modal-shell" id="modal-edit">
+  <div class="modal-header">
+    <span class="modal-title">Edit Line Item</span>
+    <button class="modal-close" onclick="showToast('Modal closed', 'success')">&#x2715;</button>
+  </div>
+
+  <div class="modal-body">
+
+    <!-- PRODUCT -->
+    <div class="section-card">
+      <div class="section-toprow">
+        <div class="section-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          <span id="edit-type-badge">Product</span>
+        </div>
+        <div class="toggle-group">
+          <div class="toggle-item">
+            <span>Description Only</span>
+            <div class="toggle-switch" id="edit-desc-only-toggle" onclick="toggleDescOnly('edit', this)"></div>
           </div>
-        </div>
-        <div class="field">
-          <label>Product or Service</label>
-          <select id="product-select">
-            <option value="">Select a product or service...</option>
-            <option>Exterior House Paint - Full</option>
-            <option>Interior Wall Paint</option>
-            <option>Deck Staining</option>
-            <option>Trim &amp; Door Painting</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Name <span class="req">*</span></label>
-          <input type="text" id="item-name" placeholder="Enter item name" />
+          <div class="toggle-item">
+            <span>Optional</span>
+            <div class="toggle-switch" onclick="this.classList.toggle('on')"></div>
+          </div>
         </div>
       </div>
-      <!-- PRICING section -->
-      <div class="field" id="pricing-section">
-        <div class="section-row">
-          <span class="section-label label-pricing">💲 Pricing</span>
-        </div>
-        <div class="pricing-row">
-          <div class="field" style="margin:0;">
-            <label>Quantity</label>
-            <input type="number" id="qty-input" value="0" min="0" />
-          </div>
-          <div style="padding-top:17px;">
-            <select style="padding:9px 6px;"><option>Ea</option><option>Hr</option><option>Sq ft</option><option>Gal</option></select>
-          </div>
-          <div class="field" style="margin:0;">
-            <label>Price</label>
-            <div class="price-wrap">
-              <span>$</span>
-              <input type="number" id="price-input" value="0" min="0" step="0.01" style="border:none;border-radius:0;" />
+      <div class="form-group">
+        <label class="form-label">Product or Service</label>
+        <select class="form-control" id="edit-catalog-select" onchange="onCatalogChange('edit')">
+          <option value="Interior Painting - Doors">Interior Painting - Doors</option>
+          <option value="Exterior Painting">Exterior Painting</option>
+          <option value="General Prep">General Prep</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Name <span class="req">*</span></label>
+        <input type="text" class="form-control" id="edit-name" value="Interior Painting - Doors" oninput="onNameInput('edit')">
+        <div class="item-type-selector" id="edit-type-selector" style="display:none">
+          <div class="item-type-row">
+            <span class="item-type-label">Item Type <span class="req">*</span></span>
+            <div class="type-pill-group">
+              <button class="type-pill" id="edit-type-product" onclick="selectType('edit','Product')">Product</button>
+              <button class="type-pill" id="edit-type-service" onclick="selectType('edit','Service')">Service</button>
             </div>
           </div>
+          <div class="type-required-hint" id="edit-type-required">Please select a type before saving.</div>
         </div>
-      </div>
-      <!-- DESCRIPTION section -->
-      <div class="field">
-        <div class="section-row" style="margin-bottom:12px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="section-label label-desc">📝 Description</span>
-            <span title="Supports rich HTML formatting" style="color:#bbb;cursor:help;font-size:13px;">ℹ</span>
-          </div>
-          <button id="ai-btn" disabled>
-            <span id="ai-icon">✨</span>
-            <span id="ai-txt">Generate with AI</span>
-          </button>
-        </div>
-        <div class="editor-wrap">
-          <div class="editor-toolbar">
-            <select><option>Styles</option></select>
-            <select><option>Font</option></select>
-            <select><option>Size</option></select>
-            <span class="toolbar-sep">|</span>
-            <button title="Bold"><b>B</b></button>
-            <button title="Italic"><i>I</i></button>
-            <button title="Underline"><u>U</u></button>
-            <button title="Strikethrough"><s>S</s></button>
-            <span class="toolbar-sep">|</span>
-            <button title="Ordered list">1.</button>
-            <button title="Unordered list">•</button>
-          </div>
-          <div class="desc-hint">
-            💡 The more detail you provide, the better your AI description will be.
-            Example: Interior walls, living room, two coats, customer-supplied Sherwin Williams Emerald Satin.
-          </div>
-          <div id="description" contenteditable="true"></div>
-        </div>
-        <div id="ai-loading">
-          <div class="ai-loading-inner">
-            <div class="spinner"></div>
-            <span style="font-size:13px;font-weight:600;color:#6c47ff;">AI is generating your description...</span>
-          </div>
-        </div>
-      </div>
-      <!-- TAX section -->
-      <div class="tax-row">
-        <span class="tax-label">% Tax</span>
-        <div class="tax-controls">
-          <span>Rate</span>
-          <input type="number" id="tax-rate-input" value="5.000" step="0.001" style="text-align:right;" />
-          <span>%</span>
-          <span style="margin-left:6px;">Taxable</span>
-          <div class="toggle" id="tax-toggle">
-            <div class="toggle-knob" id="tax-knob"></div>
-          </div>
-        </div>
-      </div>
-      <!-- TOTAL -->
-      <div class="total-box">
-        <div class="total-label">Total</div>
-        <div class="total-amount" id="total-amount">$0.00</div>
-      </div>
-      <p class="help-text">Need help? <a href="#">Click here</a> to add / edit your products and services</p>
-      <!-- Status messages (above footer) -->
-      <div class="status-wrap">
-        <div id="msg-error" class="msg error">
-          <span>⚠️</span>
-          <span>AI generation is unavailable right now. You can still enter your description manually.</span>
-        </div>
-        <div id="msg-saved" class="msg success">
-          <span>✅</span>
-          <span>Saved to Products &amp; Services.</span>
-        </div>
-        <div id="msg-duplicate" class="msg warning">
-          <div class="warn-title">⚠️ Duplicate Name Found</div>
-          <div>A product named "<span id="dup-name"></span>" already exists in your Products &amp; Services library.</div>
-          <div class="warn-actions">
-            <button class="btn-overwrite" id="btn-overwrite">Overwrite Existing</button>
-            <button class="btn-new-entry" id="btn-new-entry">Save as New Entry</button>
-            <button class="btn-cancel-dup" id="btn-cancel-dup">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div><!-- /modal-body -->
-    <!-- Footer -->
-    <div class="modal-footer">
-      <button id="save-template-btn">
-        <span>📚</span> Save as Template
-      </button>
-      <div class="footer-actions">
-        <button class="btn-close" id="btn-close">Close</button>
-        <button class="btn-save" id="btn-save">Save</button>
       </div>
     </div>
-  </div><!-- /modal -->
-  <script>
-    // ── State ──────────────────────────────────────────────
-    let aiCount   = 0;
-    let saveCount = 0;
-    let overwriteConfirmed = false;
-    let taxOn = false;
-    let descOnlyOn = false;
-    // ── Element refs ───────────────────────────────────────
-    const nameInput      = document.getElementById('item-name');
-    const aiBtn          = document.getElementById('ai-btn');
-    const aiIcon         = document.getElementById('ai-icon');
-    const aiTxt          = document.getElementById('ai-txt');
-    const aiLoading      = document.getElementById('ai-loading');
-    const descEl         = document.getElementById('description');
-    const msgError       = document.getElementById('msg-error');
-    const msgSaved       = document.getElementById('msg-saved');
-    const msgDuplicate   = document.getElementById('msg-duplicate');
-    const dupNameEl      = document.getElementById('dup-name');
-    const saveTemplBtn   = document.getElementById('save-template-btn');
-    const taxToggle      = document.getElementById('tax-toggle');
-    const taxKnob        = document.getElementById('tax-knob');
-    const productSelect  = document.getElementById('product-select');
-    const pricingSection = document.getElementById('pricing-section');
-    const qtyInput       = document.getElementById('qty-input');
-    const priceInput     = document.getElementById('price-input');
-    const taxRateInput   = document.getElementById('tax-rate-input');
-    const totalAmount    = document.getElementById('total-amount');
-    const descOnlyToggle = document.getElementById('desc-only-toggle');
-    const descOnlyKnob   = document.getElementById('desc-only-knob');
-    const optionalToggle = document.getElementById('optional-toggle');
-    const optionalKnob   = document.getElementById('optional-knob');
-    // ── Product dropdown → auto-populate Name ──────────────
-    productSelect.addEventListener('change', () => {
-      const val = productSelect.value;
-      if (val) {
-        nameInput.value = val;
-        nameInput.dispatchEvent(new Event('input'));
-      }
-    });
-    // ── Name field → enable/disable AI button ──────────────
-    nameInput.addEventListener('focus', () => nameInput.style.borderColor = '#6c47ff');
-    nameInput.addEventListener('blur',  () => nameInput.style.borderColor = '#ddd');
-    nameInput.addEventListener('input', () => {
-      const hasText = nameInput.value.trim().length > 0;
-      aiBtn.disabled = !hasText;
-      aiBtn.style.opacity = hasText ? '1' : '0.4';
-      aiBtn.title = hasText
-        ? 'Generate AI description for: ' + nameInput.value.trim()
-        : 'Enter an item name to enable AI generation';
-    });
-    // ── Total calculation ──────────────────────────────────
-    function updateTotal() {
-      if (descOnlyOn) { totalAmount.textContent = '$0.00'; return; }
-      const qty   = parseFloat(qtyInput.value)   || 0;
-      const price = parseFloat(priceInput.value)  || 0;
-      const rate  = parseFloat(taxRateInput.value) || 0;
-      let subtotal = qty * price;
-      if (taxOn) subtotal += subtotal * (rate / 100);
-      totalAmount.textContent = '$' + subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    <!-- PRICING -->
+    <div class="section-card" id="edit-pricing-section">
+      <div class="section-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Pricing
+      </div>
+      <div class="pricing-row">
+        <div>
+          <label class="form-label">Quantity</label>
+          <div class="qty-wrap">
+            <input type="number" class="qty-input" value="1.00">
+            <span class="qty-unit">Ea</span>
+          </div>
+        </div>
+        <div class="price-field-wrap">
+          <label class="form-label">Price</label>
+          <div class="price-inner">
+            <span class="price-currency">$</span>
+            <input type="number" class="form-control" id="edit-price" value="250.00" oninput="updateTotal('edit')">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESCRIPTION -->
+    <div class="section-card">
+      <div class="desc-section-header">
+        <div class="section-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+          Description
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <button class="btn-generate-with-ai" id="edit-gen-with-ai-btn" onclick="openAiPanel('edit')">
+          &#x2736; Generate with AI
+        </button>
+      </div>
+      <!-- AI Prompt Panel -->
+      <div class="ai-prompt-panel" id="edit-ai-panel" style="display:none">
+        <div class="ai-prompt-header">
+          <span>&#x2736;</span> Describe This Line Item
+        </div>
+        <div class="ai-prompt-hint">The more detail you provide, the better your AI description will be. Example: Interior walls, living room, two coats, customer-supplied Sherwin Williams Emerald Satin.</div>
+        <textarea class="ai-prompt-textarea" id="edit-ai-input" placeholder='Describe "Interior Painting - Doors"...'></textarea>
+        <div class="ai-prompt-actions">
+          <button class="ai-cancel-btn" onclick="closeAiPanel('edit')">&#x2715; Cancel</button>
+          <button class="ai-generate-btn" id="edit-gen-btn" onclick="triggerGenerate('edit')">
+            <svg class="gen-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/></svg>
+            <div class="spin-ring"></div>
+            <span class="gen-label">&#x2736; Generate</span>
+          </button>
+        </div>
+      </div>
+      <div class="desc-toolbar">
+        <select class="toolbar-sel"><option>Styles</option><option>H1</option><option>H2</option><option>Normal</option></select>
+        <select class="toolbar-sel"><option>Font</option></select>
+        <select class="toolbar-sel"><option>Size</option></select>
+        <div class="t-sep"></div>
+        <button class="t-btn" style="font-weight:bold">B</button>
+        <button class="t-btn" style="font-style:italic">I</button>
+        <button class="t-btn" style="text-decoration:underline">U</button>
+        <button class="t-btn" style="text-decoration:line-through">S</button>
+        <div class="t-sep"></div>
+        <button class="t-btn">&#8226;</button>
+        <button class="t-btn">1.</button>
+        <button class="t-btn">&#8592;</button>
+        <button class="t-btn">&#8594;</button>
+      </div>
+      <div class="desc-editor-wrap">
+        <div class="desc-editor" id="edit-desc" contenteditable="true" oninput="onDescInput('edit')">
+          <p>Preparation:</p>
+          <p>Remove Doors</p>
+          <p>Remove Handles &amp; Hinges</p>
+          <p>Sand Down Inconsistencies</p>
+          <p>Rack Doors</p>
+          <p>Spray Doors</p>
+          <br>
+          <p>Note: Removing, Racking &amp; Spraying is dependent on varying factors relating to spray area. If no spray area is available, we will brush &amp; roll the doors. Pricing includes the interior portion of exterior entry doors only.</p>
+        </div>
+        <div class="desc-loading-overlay" id="edit-desc-loading">
+          <div class="desc-spinner-ring"></div>
+          <span class="desc-loading-label">Generating description...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAX -->
+    <div class="section-card">
+      <div class="tax-row">
+        <div class="tax-lbl">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+          Tax
+        </div>
+        <div class="tax-rate-area">
+          <span>Rate</span>
+          <input type="number" class="tax-input" id="edit-tax-rate" value="5.000" oninput="updateTotal('edit')">
+          <span>%</span>
+          <span>Taxable</span>
+          <div class="toggle-switch" id="edit-taxable-toggle" onclick="toggleTaxable('edit', this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOTAL -->
+    <div class="total-bar">
+      <div class="t-lbl">Total</div>
+      <div class="t-amt" id="edit-total">$250.00</div>
+    </div>
+    <div class="help-text">Need help? <a href="#" onclick="return false">Click here</a> to add / edit your products and services</div>
+    <div class="save-new-product-row">
+      <label class="save-new-product-label">
+        <input type="checkbox" id="edit-save-new-product">
+        <span class="save-new-product-toggle"></span>
+        Save as new product/service
+      </label>
+    </div>
+
+  </div>
+
+  <div class="modal-footer">
+    <div>
+      <button class="btn btn-danger" onclick="showToast('Line item deleted','error')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Delete
+      </button>
+    </div>
+    <div class="footer-right">
+      <button class="btn btn-ghost" onclick="showToast('Modal closed','success')">Close</button>
+      <button class="btn btn-primary" onclick="handleLineItemSave('edit')">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════
+     ADD ITEM MODAL
+══════════════════════ -->
+<div class="modal-shell" id="modal-add" style="display:none">
+  <div class="modal-header">
+    <span class="modal-title">Add Item</span>
+    <button class="modal-close" onclick="showToast('Modal closed','success')">&#x2715;</button>
+  </div>
+
+  <div class="modal-body">
+
+    <!-- PRODUCT -->
+    <div class="section-card">
+      <div class="section-toprow">
+        <div class="section-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          <span id="add-type-badge">Product</span>
+        </div>
+        <div class="toggle-group">
+          <div class="toggle-item">
+            <span>Description Only</span>
+            <div class="toggle-switch" id="add-desc-only-toggle" onclick="toggleDescOnly('add', this)"></div>
+          </div>
+          <div class="toggle-item">
+            <span>Optional</span>
+            <div class="toggle-switch" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Product or Service</label>
+        <select class="form-control" id="add-catalog-select" onchange="onCatalogChange('add')">
+          <option value="">Select a product or service...</option>
+          <option value="General Prep">General Prep</option>
+          <option value="Interior Painting - Doors">Interior Painting - Doors</option>
+          <option value="Exterior Painting">Exterior Painting</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Name <span class="req">*</span></label>
+        <input type="text" class="form-control" id="add-name" placeholder="Enter item name..." oninput="onNameInput('add')">
+        <div class="item-type-selector" id="add-type-selector" style="display:none">
+          <div class="item-type-row">
+            <span class="item-type-label">Item Type <span class="req">*</span></span>
+            <div class="type-pill-group">
+              <button class="type-pill" id="add-type-product" onclick="selectType('add','Product')">Product</button>
+              <button class="type-pill" id="add-type-service" onclick="selectType('add','Service')">Service</button>
+            </div>
+          </div>
+          <div class="type-required-hint" id="add-type-required">Please select a type before saving.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRICING -->
+    <div class="section-card" id="add-pricing-section">
+      <div class="section-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Pricing
+      </div>
+      <div class="pricing-row">
+        <div>
+          <label class="form-label">Quantity</label>
+          <div class="qty-wrap">
+            <input type="number" class="qty-input" value="0">
+            <span class="qty-unit">Ea</span>
+          </div>
+        </div>
+        <div class="price-field-wrap">
+          <label class="form-label">Price</label>
+          <div class="price-inner">
+            <span class="price-currency">$</span>
+            <input type="number" class="form-control" id="add-price" value="0" oninput="updateTotal('add')">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESCRIPTION -->
+    <div class="section-card">
+      <div class="desc-section-header">
+        <div class="section-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+          Description
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <button class="btn-generate-with-ai" id="add-gen-with-ai-btn" onclick="openAiPanel('add')">
+          &#x2736; Generate with AI
+        </button>
+      </div>
+      <!-- AI Prompt Panel -->
+      <div class="ai-prompt-panel" id="add-ai-panel" style="display:none">
+        <div class="ai-prompt-header">
+          <span>&#x2736;</span> Describe This Line Item
+        </div>
+        <div class="ai-prompt-hint">The more detail you provide, the better your AI description will be. Example: Interior walls, living room, two coats, customer-supplied Sherwin Williams Emerald Satin.</div>
+        <textarea class="ai-prompt-textarea" id="add-ai-input" placeholder="Describe this item..."></textarea>
+        <div class="ai-prompt-actions">
+          <button class="ai-cancel-btn" onclick="closeAiPanel('add')">&#x2715; Cancel</button>
+          <button class="ai-generate-btn" id="add-gen-btn" onclick="triggerGenerate('add')">
+            <svg class="gen-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/></svg>
+            <div class="spin-ring"></div>
+            <span class="gen-label">&#x2736; Generate</span>
+          </button>
+        </div>
+      </div>
+      <div class="desc-toolbar">
+        <select class="toolbar-sel"><option>Styles</option><option>H1</option><option>H2</option><option>Normal</option></select>
+        <select class="toolbar-sel"><option>Font</option></select>
+        <select class="toolbar-sel"><option>Size</option></select>
+        <div class="t-sep"></div>
+        <button class="t-btn" style="font-weight:bold">B</button>
+        <button class="t-btn" style="font-style:italic">I</button>
+        <button class="t-btn" style="text-decoration:underline">U</button>
+        <button class="t-btn" style="text-decoration:line-through">S</button>
+        <div class="t-sep"></div>
+        <button class="t-btn">&#8226;</button>
+        <button class="t-btn">1.</button>
+        <button class="t-btn">&#8592;</button>
+        <button class="t-btn">&#8594;</button>
+      </div>
+      <div class="desc-editor-wrap">
+        <div class="desc-editor" id="add-desc" contenteditable="true" style="min-height:110px" oninput="onDescInput('add')">
+          <span class="body-hint">body p</span>
+        </div>
+        <div class="desc-loading-overlay" id="add-desc-loading">
+          <div class="desc-spinner-ring"></div>
+          <span class="desc-loading-label">Generating description...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAX -->
+    <div class="section-card">
+      <div class="tax-row">
+        <div class="tax-lbl">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+          Tax
+        </div>
+        <div class="tax-rate-area">
+          <span>Rate</span>
+          <input type="number" class="tax-input" id="add-tax-rate" value="5.000" oninput="updateTotal('add')">
+          <span>%</span>
+          <span>Taxable</span>
+          <div class="toggle-switch on" id="add-taxable-toggle" onclick="toggleTaxable('add', this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOTAL -->
+    <div class="total-bar">
+      <div class="t-lbl">Total</div>
+      <div class="t-amt" id="add-total">$0.00</div>
+    </div>
+    <div class="help-text">Need help? <a href="#" onclick="return false">Click here</a> to add / edit your products and services</div>
+    <div class="save-new-product-row">
+      <label class="save-new-product-label">
+        <input type="checkbox" id="add-save-new-product">
+        <span class="save-new-product-toggle"></span>
+        Save as new product/service
+      </label>
+    </div>
+
+  </div>
+
+  <div class="modal-footer">
+    <div></div>
+    <div class="footer-right">
+      <button class="btn btn-ghost" onclick="showToast('Modal closed','success')">Close</button>
+      <button class="btn btn-primary" onclick="handleLineItemSave('add')">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════
+     DIALOGS
+══════════════ -->
+
+<!-- Replace warning -->
+<div class="overlay" id="dlg-replace">
+  <div class="dialog">
+    <div class="dialog-icon-wrap icon-warn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+    <div class="dialog-title">Replace Description?</div>
+    <div class="dialog-body">Jobi AI will replace your current description. Would you like to continue?</div>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" onclick="closeDialog('dlg-replace')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReplace()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Empty generate -->
+<div class="overlay" id="dlg-empty">
+  <div class="dialog">
+    <div class="dialog-icon-wrap icon-error">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e63757" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <div class="dialog-title">Input Required</div>
+    <div class="dialog-body">Please describe the service before generating.</div>
+    <div class="dialog-actions">
+      <button class="btn btn-primary" onclick="closeDialog('dlg-empty')">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI error -->
+<div class="overlay" id="dlg-ai-error">
+  <div class="dialog">
+    <div class="dialog-icon-wrap icon-error">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e63757" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <div class="dialog-title">Generation Failed</div>
+    <div class="dialog-body">Jobi AI is unavailable right now. Please try again.</div>
+    <div class="dialog-actions">
+      <button class="btn btn-primary" onclick="closeDialog('dlg-ai-error')">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toastEl">
+  <div class="toast-dot success" id="toast-dot"></div>
+  <span id="toast-msg"></span>
+</div>
+
+
+<script>
+  var pendingModal = null;
+
+  /* catalog item → type mapping */
+  var catalogTypes = {
+    'Interior Painting - Doors': 'Product',
+    'Exterior Painting': 'Product',
+    'General Prep': 'Service'
+  };
+
+  /* per-modal state */
+  var nameTypedDirectly = { edit: false, add: false };
+  var selectedItemType  = { edit: null,  add: null  };
+
+  /* per-modal toggle state */
+  var descOnlyOn    = { edit: false, add: false };
+  var taxableOn     = { edit: false, add: true  }; /* add starts taxable=on */
+  var originalPrice = { edit: 250.00, add: 0    };
+
+  window.addEventListener('DOMContentLoaded', function() {
+    /* Edit modal: initialize badge from pre-selected catalog item */
+    var sel = document.getElementById('edit-catalog-select');
+    if (sel && sel.value) setBadge('edit', catalogTypes[sel.value] || 'Product');
+    /* Initialize totals so tax is applied where toggle starts ON */
+    updateTotal('edit');
+    updateTotal('add');
+  });
+
+  function switchModal(type, btn) {
+    document.getElementById('modal-edit').style.display = (type === 'edit') ? 'block' : 'none';
+    document.getElementById('modal-add').style.display  = (type === 'add')  ? 'block' : 'none';
+    document.querySelectorAll('.demo-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+
+  function updateTotal(m) {
+    if (descOnlyOn[m]) {
+      document.getElementById(m+'-total').textContent = '$0.00';
+      return;
     }
-    qtyInput.addEventListener('input', updateTotal);
-    priceInput.addEventListener('input', updateTotal);
-    taxRateInput.addEventListener('input', updateTotal);
-    // ── Description Only toggle ────────────────────────────
-    descOnlyToggle.addEventListener('click', () => {
-      descOnlyOn = !descOnlyOn;
-      descOnlyToggle.style.background = descOnlyOn ? '#6c47ff' : '#ddd';
-      descOnlyKnob.style.left = descOnlyOn ? '18px' : '2px';
-      pricingSection.style.display = descOnlyOn ? 'none' : '';
-      updateTotal();
-    });
-    // ── Optional toggle (visual only) ─────────────────────
-    let optionalOn = false;
-    optionalToggle.addEventListener('click', () => {
-      optionalOn = !optionalOn;
-      optionalToggle.style.background = optionalOn ? '#6c47ff' : '#ddd';
-      optionalKnob.style.left = optionalOn ? '18px' : '2px';
-    });
-    // ── Tax toggle ─────────────────────────────────────────
-    taxToggle.addEventListener('click', () => {
-      taxOn = !taxOn;
-      taxToggle.style.background = taxOn ? '#6c47ff' : '#ddd';
-      taxKnob.style.left = taxOn ? '18px' : '2px';
-      updateTotal();
-    });
-    // ── AI generation ──────────────────────────────────────
-    aiBtn.addEventListener('click', () => {
-      const nameVal = nameInput.value.trim();
-      if (!nameVal) return;
-      // Hide prior messages
-      hide(msgError); hide(msgSaved); hide(msgDuplicate);
-      // Loading state
-      aiBtn.disabled = true;
-      aiBtn.style.opacity = '0.7';
-      aiIcon.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:2px;border-color:#c4b5fd;border-top-color:#fff;"></span>';
-      aiTxt.textContent = 'Generating...';
-      aiLoading.style.display = 'block';
-      aiCount++;
-      const isError = (aiCount % 5 === 0); // simulate error every 5th click
-      setTimeout(() => {
-        aiLoading.style.display = 'none';
-        aiBtn.disabled = false;
-        aiBtn.style.opacity = '1';
-        if (isError) {
-          aiIcon.textContent = '✨';
-          aiTxt.textContent  = 'Generate with AI';
-          show(msgError);
-          return;
-        }
-        // Success
-        aiIcon.textContent = '✨';
-        aiTxt.textContent  = 'Regenerate with AI';
-        // Populate name (clean/capitalize)
-        nameInput.value = capitalize(nameVal);
-        // Populate description
-        descEl.innerHTML = buildHTML(nameVal);
-        flash(descEl);
-      }, 2200);
-    });
-    // ── Save as Template ───────────────────────────────────
-    saveTemplBtn.addEventListener('click', doSaveTemplate);
-    function doSaveTemplate() {
-      const nameVal = nameInput.value.trim();
-      hide(msgSaved); hide(msgDuplicate); hide(msgError);
-      if (!nameVal) {
-        nameInput.style.borderColor = '#e53e3e';
-        nameInput.focus();
-        setTimeout(() => nameInput.style.borderColor = '#ddd', 2000);
-        return;
-      }
-      // Demo: duplicate if saveCount > 0 AND name includes "paint"
-      const isDup = saveCount > 0
-        && nameVal.toLowerCase().includes('paint')
-        && !overwriteConfirmed;
-      if (isDup) {
-        dupNameEl.textContent = capitalize(nameVal);
-        show(msgDuplicate);
-        return;
-      }
-      // Saving state
-      saveTemplBtn.disabled = true;
-      saveTemplBtn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:middle;border-color:#c4b5fd;border-top-color:#6c47ff;"></span> Saving...';
-      setTimeout(() => {
-        saveCount++;
-        overwriteConfirmed = false;
-        saveTemplBtn.disabled = false;
-        saveTemplBtn.innerHTML = '<span>📚</span> Save as Template';
-        hide(msgDuplicate);
-        show(msgSaved);
-        setTimeout(() => hide(msgSaved), 4000);
-      }, 1400);
+    var price = parseFloat(document.getElementById(m+'-price').value) || 0;
+    var total = price;
+    if (taxableOn[m]) {
+      var rate = parseFloat(document.getElementById(m+'-tax-rate').value) || 0;
+      total = price * (1 + rate / 100);
     }
-    // ── Duplicate actions ──────────────────────────────────
-    document.getElementById('btn-overwrite').addEventListener('click', () => {
-      overwriteConfirmed = true;
-      doSaveTemplate();
-    });
-    document.getElementById('btn-new-entry').addEventListener('click', () => {
-      nameInput.value = nameInput.value.trim() + ' (Copy)';
-      overwriteConfirmed = true;
-      doSaveTemplate();
-    });
-    document.getElementById('btn-cancel-dup').addEventListener('click', () => {
-      hide(msgDuplicate);
-    });
-    // ── Save / Close ───────────────────────────────────────
-    document.getElementById('btn-save').addEventListener('click', function () {
-      const nameVal = nameInput.value.trim();
-      if (!nameVal) {
-        nameInput.style.borderColor = '#e53e3e';
-        nameInput.focus();
-        setTimeout(() => nameInput.style.borderColor = '#ddd', 2000);
-        return;
-      }
-      this.textContent = 'Saving...';
-      this.style.background = '#5a38e0';
-      setTimeout(() => {
-        this.textContent = '✓ Saved!';
-        this.style.background = '#38a169';
-        setTimeout(() => {
-          // Reset form for demo replay
-          resetForm();
-          this.textContent = 'Save';
-          this.style.background = '#6c47ff';
-        }, 1200);
-      }, 900);
-    });
-    document.getElementById('btn-close').addEventListener('click', resetForm);
-    // ── Helpers ────────────────────────────────────────────
-    function show(el) { el.style.display = el.classList.contains('warning') ? 'block' : 'flex'; }
-    function hide(el) { el.style.display = 'none'; }
-    function flash(el) {
-      el.style.transition = 'background 0.4s';
-      el.style.background = '#fffff0';
-      setTimeout(() => { el.style.background = ''; }, 1400);
+    document.getElementById(m+'-total').textContent = '$' + total.toFixed(2);
+  }
+
+  function toggleDescOnly(m, el) {
+    el.classList.toggle('on');
+    descOnlyOn[m] = el.classList.contains('on');
+    var pricingEl = document.getElementById(m+'-pricing-section');
+    if (descOnlyOn[m]) {
+      originalPrice[m] = parseFloat(document.getElementById(m+'-price').value) || 0;
+      pricingEl.style.display = 'none';
+    } else {
+      pricingEl.style.display = '';
+      document.getElementById(m+'-price').value = originalPrice[m];
     }
-    function capitalize(str) {
-      return str.replace(/\b\w/g, c => c.toUpperCase()).trim();
+    updateTotal(m);
+  }
+
+  function toggleTaxable(m, el) {
+    el.classList.toggle('on');
+    taxableOn[m] = el.classList.contains('on');
+    updateTotal(m);
+  }
+
+  /* ── Badge ── */
+  function setBadge(m, type) {
+    document.getElementById(m+'-type-badge').textContent = type || 'Product';
+  }
+
+  /* ── Catalog dropdown ── */
+  function onCatalogChange(m) {
+    var val = document.getElementById(m+'-catalog-select').value;
+    /* Hide type selector — catalog item has a known classification */
+    document.getElementById(m+'-type-selector').style.display = 'none';
+    nameTypedDirectly[m] = false;
+    selectedItemType[m]  = null;
+    clearTypePills(m);
+    if (val) {
+      setBadge(m, catalogTypes[val] || 'Product');
+      /* Auto-fill name from catalog selection (no oninput fires) */
+      document.getElementById(m+'-name').value = val;
+      /* Update AI placeholder silently */
+      var aiInput = document.getElementById(m+'-ai-input');
+      if (aiInput) aiInput.placeholder = 'Describe "' + val + '"...';
+    } else {
+      setBadge(m, 'Product');
+      document.getElementById(m+'-name').value = '';
     }
-    function resetForm() {
-      nameInput.value = '';
-      productSelect.value = '';
-      descEl.innerHTML = '';
-      aiBtn.disabled = true;
-      aiBtn.style.opacity = '0.4';
-      aiIcon.textContent = '✨';
-      aiTxt.textContent = 'Generate with AI';
-      hide(msgError); hide(msgSaved); hide(msgDuplicate);
-      aiCount = 0; saveCount = 0; overwriteConfirmed = false;
-      // Reset pricing / tax / total
-      qtyInput.value = '0';
-      priceInput.value = '0';
-      taxRateInput.value = '5.000';
-      descOnlyOn = false;
-      descOnlyToggle.style.background = '#ddd';
-      descOnlyKnob.style.left = '2px';
-      pricingSection.style.display = '';
-      optionalOn = false;
-      optionalToggle.style.background = '#ddd';
-      optionalKnob.style.left = '2px';
-      taxOn = false;
-      taxToggle.style.background = '#ddd';
-      taxKnob.style.left = '2px';
-      totalAmount.textContent = '$0.00';
+  }
+
+  /* ── Name field (user typing) ── */
+  function onNameInput(m) {
+    var nameVal = document.getElementById(m+'-name').value.trim();
+    /* Update AI panel placeholder */
+    var aiInput = document.getElementById(m+'-ai-input');
+    if (aiInput) aiInput.placeholder = nameVal ? 'Describe "' + nameVal + '"...' : 'Describe this item...';
+
+    if (nameVal) {
+      nameTypedDirectly[m] = true;
+      document.getElementById(m+'-type-selector').style.display = 'block';
+      if (!selectedItemType[m]) setBadge(m, 'Item');
+    } else {
+      /* Name cleared — reset */
+      nameTypedDirectly[m] = false;
+      selectedItemType[m]  = null;
+      clearTypePills(m);
+      document.getElementById(m+'-type-selector').style.display = 'none';
+      document.getElementById(m+'-type-required').classList.remove('show');
+      var sel = document.getElementById(m+'-catalog-select');
+      setBadge(m, (sel && sel.value) ? (catalogTypes[sel.value] || 'Product') : 'Product');
     }
-    // ── AI HTML builder ────────────────────────────────────
-    function buildHTML(raw) {
-      const name = capitalize(raw);
-      const nl   = raw.toLowerCase();
-      let html   = `<p><strong>${name}</strong></p>`;
-      // Preparation
-      html += `<p><strong>Preparation</strong></p><ul>`;
-      html += `<li>Inspect and clean all surfaces to ensure proper paint adhesion.</li>`;
-      html += `<li>Sand rough or peeling areas and feather all edges smooth.</li>`;
-      html += `<li>Fill holes and surface imperfections with appropriate patching compound; allow to cure fully.</li>`;
-      html += `<li>Apply painter's tape to protect adjacent surfaces, trim, and fixtures.</li>`;
-      if (nl.includes('exterior') || nl.includes('outside') || nl.includes('siding')) {
-        html += `<li>Power wash all exterior surfaces and allow to dry for a minimum of 24 hours before coating.</li>`;
-      }
-      html += `</ul>`;
-      // Product
-      html += `<p><strong>Product</strong></p><ul>`;
-      html += `<li>Premium-quality paint to be selected per project specification and client approval.</li>`;
-      html += `<li>Primer applied where required for proper adhesion and uniform coverage.</li>`;
-      html += `<li>Paint sheen, brand, and color to be confirmed with client prior to material purchase.</li>`;
-      html += `</ul>`;
-      // Application
-      html += `<p><strong>Application</strong></p><ul>`;
-      html += `<li>Apply one uniform coat of primer; allow to dry fully per manufacturer guidelines.</li>`;
-      html += `<li>Apply a minimum of two finish coats, allowing adequate dry time between coats.</li>`;
-      html += `<li>Maintain a wet edge throughout application to prevent lap marks and ensure even coverage.</li>`;
-      if (nl.includes('exterior') || nl.includes('spray') || nl.includes('siding')) {
-        html += `<li>Back-roll all sprayed surfaces to ensure full penetration and adhesion.</li>`;
-      }
-      html += `</ul>`;
-      // Areas of Application
-      html += `<p><strong>Areas of Application</strong></p><ul>`;
-      if (nl.includes('interior') || nl.includes('wall') || nl.includes('room') || nl.includes('ceiling')) {
-        html += `<li>Interior walls and ceiling surfaces as specified in the agreed scope of work.</li>`;
-        html += `<li>All trim, doors, and accent features included in the scope to be painted to match or complement the primary color.</li>`;
-      } else if (nl.includes('exterior') || nl.includes('outside') || nl.includes('siding')) {
-        html += `<li>All exterior siding, fascia, soffit, and gable surfaces.</li>`;
-        html += `<li>Trim, shutters, and architectural detail as included in the agreed scope.</li>`;
-      } else if (nl.includes('deck') || nl.includes('fence') || nl.includes('stain')) {
-        html += `<li>Deck boards, railings, balusters, and stair treads as specified.</li>`;
-        html += `<li>Fence pickets, rails, and posts as outlined in the agreed scope.</li>`;
+  }
+
+  /* ── Type pill selection ── */
+  function selectType(m, type) {
+    selectedItemType[m] = type;
+    setBadge(m, type);
+    document.getElementById(m+'-type-product').classList.toggle('active', type === 'Product');
+    document.getElementById(m+'-type-service').classList.toggle('active', type === 'Service');
+    document.getElementById(m+'-type-required').classList.remove('show');
+  }
+
+  function clearTypePills(m) {
+    document.getElementById(m+'-type-product').classList.remove('active');
+    document.getElementById(m+'-type-service').classList.remove('active');
+  }
+
+  /* ── AI Panel ── */
+  function openAiPanel(m) {
+    var panel   = document.getElementById(m+'-ai-panel');
+    var nameVal = document.getElementById(m+'-name').value.trim();
+    var input   = document.getElementById(m+'-ai-input');
+    input.placeholder = nameVal ? 'Describe "' + nameVal + '"...' : 'Describe this item...';
+    panel.style.display = 'block';
+    setTimeout(function(){ input.focus(); }, 50);
+  }
+
+  function closeAiPanel(m) {
+    document.getElementById(m+'-ai-panel').style.display = 'none';
+  }
+
+  function onDescInput(m) { /* reserved for future use */ }
+
+  /* ── Generate ── */
+  function triggerGenerate(m) {
+    var input = document.getElementById(m+'-ai-input').value.trim();
+    if (!input) { openDialog('dlg-empty'); return; }
+
+    var desc = document.getElementById(m+'-desc');
+    var text = (desc.innerText || desc.textContent || '').replace(/body p/g,'').trim();
+    var hasContent = text.length > 0;
+
+    pendingModal = m;
+    if (hasContent) {
+      openDialog('dlg-replace');
+    } else {
+      runGenerate();
+    }
+  }
+
+  function confirmReplace() {
+    closeDialog('dlg-replace');
+    runGenerate();
+  }
+
+  function runGenerate() {
+    var m = pendingModal;
+    var btn = document.getElementById(m+'-gen-btn');
+    var loadingOverlay = document.getElementById(m+'-desc-loading');
+
+    /* Button loading state */
+    btn.classList.add('gen-loading');
+    btn.disabled = true;
+    var label = btn.querySelector('.gen-label');
+    if (label) label.textContent = 'Generating...';
+
+    /* Description loading state */
+    loadingOverlay.classList.add('show');
+
+    setTimeout(function() {
+      btn.classList.remove('gen-loading');
+      btn.disabled = false;
+      if (label) label.textContent = '\u2736 Generate';
+      loadingOverlay.classList.remove('show');
+
+      var succeed = Math.random() > 0.15;
+      if (succeed) {
+        var desc = document.getElementById(m+'-desc');
+        var input = document.getElementById(m+'-ai-input').value.trim();
+        var itemName = document.getElementById(m+'-name').value.trim() || input.substring(0,40);
+        desc.innerHTML =
+          '<p><strong>' + itemName + '</strong></p>' +
+          '<p><strong>Preparation:</strong></p>' +
+          '<ul>' +
+          '<li>Move furniture to center of room and cover with protective drop cloths</li>' +
+          '<li>Remove switch plates, outlet covers, and hardware</li>' +
+          '<li>Protect floors with canvas drop cloths or plastic sheeting</li>' +
+          '<li>Mask trim, baseboards, and ceiling edges as needed</li>' +
+          '<li>Fill nail holes and minor imperfections with spackle; sand smooth</li>' +
+          '</ul>' +
+          '<p><strong>Application:</strong></p>' +
+          '<ul>' +
+          '<li>Cut in edges and corners with brush</li>' +
+          '<li>Roll walls using 3/8&quot; nap roller</li>' +
+          '<li>Apply two coats for uniform coverage and color</li>' +
+          '</ul>' +
+          '<p><em>Note: Pricing is based on standard conditions. Additional charges may apply for surfaces requiring extensive prep or specialty coatings.</em></p>';
+        desc.classList.add('ai-flash');
+        setTimeout(function(){ desc.classList.remove('ai-flash'); }, 1400);
+        onDescInput(m);
+        closeAiPanel(m);
+        showToast('Description generated by Jobi AI', 'success');
       } else {
-        html += `<li>All surfaces as outlined in the agreed-upon scope of work.</li>`;
-        html += `<li>Additional areas to be confirmed with the client prior to commencement.</li>`;
+        openDialog('dlg-ai-error');
       }
-      html += `</ul>`;
-      return html;
+    }, 2000);
+  }
+
+  var productsAndServicesEntries = [];
+
+  function handleLineItemSave(m) {
+    /* Validate: type selector visible but no type chosen */
+    var typeSelector = document.getElementById(m+'-type-selector');
+    if (typeSelector.style.display !== 'none' && !selectedItemType[m]) {
+      document.getElementById(m+'-type-required').classList.add('show');
+      typeSelector.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
     }
-  </script>
+
+    var saveAsNewToggle = document.getElementById(m+'-save-new-product');
+    if (saveAsNewToggle && saveAsNewToggle.checked) {
+      var catalogSel = document.getElementById(m+'-catalog-select');
+      var resolvedType = selectedItemType[m] ||
+                         (catalogSel && catalogTypes[catalogSel.value]) ||
+                         'Product';
+      productsAndServicesEntries.push({
+        name:        (document.getElementById(m+'-name').value || '').trim(),
+        type:        resolvedType,
+        price:       parseFloat(document.getElementById(m+'-price').value) || 0,
+        description: (document.getElementById(m+'-desc').innerText || '').trim()
+      });
+      showToast(resolvedType + ' added to proposal and Products & Services', 'success');
+      return;
+    }
+
+    showToast('Line item added to proposal', 'success');
+  }
+
+  function openDialog(id) { document.getElementById(id).classList.add('show'); }
+  function closeDialog(id) { document.getElementById(id).classList.remove('show'); }
+
+  var toastTimer;
+  function showToast(msg, type) {
+    var el = document.getElementById('toastEl');
+    var dot = document.getElementById('toast-dot');
+    dot.className = 'toast-dot ' + (type || 'success');
+    document.getElementById('toast-msg').textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3200);
+  }
+</script>
 </body>
 </html>
